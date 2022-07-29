@@ -2,13 +2,13 @@ import {loadStdlib} from '@reach-sh/stdlib';
 import * as backend from './build/index.main.mjs';
 const stdlib = loadStdlib(process.env);
 
-const startingBalance = stdlib.parseCurrency(100);
+const startingBalance = stdlib.parseCurrency(7000);
 
 const accAlice = await stdlib.newTestAccount(startingBalance);
-const accBob = await stdlib.newTestAccount(stdlib.parseCurrency(10000));
+const accBob = await stdlib.newTestAccount(startingBalance);
 const accBalance=async (who)=>stdlib.formatCurrency((await stdlib.balanceOf(who)))
-console.log(`Alice balance before:${accBalance(accAlice)}`)
-console.log(`Bob balance before:${accBalance(accBob)}`)
+console.log(`Alice balance before:${await accBalance(accAlice)}`)
+console.log(`Bob balance before:${await accBalance(accBob)}`)
 
 console.log('Hello, Alice and Bob!');
 
