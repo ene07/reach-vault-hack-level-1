@@ -1,6 +1,6 @@
 'reach 0.1';
 
-const countDown=2;
+const countDown=10;
 const timer={
   showTime:Fun([UInt],Null)
 }
@@ -10,8 +10,7 @@ export const main = Reach.App(() => {
     // Specify Alice's interact interface here
     deposit:UInt,
     ...timer,
-    makeDecision:Fun([],Bool),
-    informTimeout: Fun([], Null),
+    makeDecision:Fun([],Bool)
   });
   const B = Participant('Bob', {
     // Specify Bob's interact interface here
@@ -34,50 +33,24 @@ export const main = Reach.App(() => {
     
   });
   B.publish(terms)
-
+  commit();
 
   each([A,B],()=>{
     interact.showTime(countDown)
   })
 
-  
-  const informTimeout = () => {
-    A.only(() => {
-      interact.informTimeout();
-    });
-  };
-
-  const fixedTimer=  lastConsensusSecs() + countDown
-
- //var stillHere = true;
- var [ count, stillHere  ] = [ fixedTimer,true] 
-  invariant(balance() == balance());
-   while ( stillHere== true ) {
-    commit();
- 
-    //const count= lastConsensusSecs()
   A.only(() => {
     const decision = declassify(interact.makeDecision());
    
   });
   A.publish(decision)
-  .timeout(fixedTimer, () =>closeTo(B, informTimeout))
-  
- 
- 
-  if(count==0){
-    transfer(balance()).to(A)
- 
+
+  if(decision){
+    transfer(value).to(A)
+  }else{
+    transfer(value).to(B)
   }
- // var [ count, initialValue ] = [ 1, 50 ] 
-
- // stillHere = decision
- [ count, stillHere  ] = [ count - 1,decision ] 
-  continue;
-}
-transfer(balance()).to(B)
-commit();
-
-  
+  commit();
+  // write your program here
   exit();
 });
