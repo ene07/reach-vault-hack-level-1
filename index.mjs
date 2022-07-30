@@ -1,8 +1,14 @@
-import {loadStdlib} from '@reach-sh/stdlib';
+import { loadStdlib, ask } from '@reach-sh/stdlib';
 import * as backend from './build/index.main.mjs';
 const stdlib = loadStdlib(process.env);
 
 const startingBalance = stdlib.parseCurrency(7000);
+
+const isAlice = await ask.ask(
+  `Are you Alice?`,
+  ask.yesno
+);
+const who = isAlice ? 'Alice' : 'Bob';
 
 const accAlice = await stdlib.newTestAccount(startingBalance);
 const accBob = await stdlib.newTestAccount(startingBalance);
@@ -13,41 +19,72 @@ console.log(`Bob balance before:${await accBalance(accBob)}`)
 console.log('Hello, Alice and Bob!');
 
 console.log('Launching...');
-const ctcAlice = accAlice.contract(backend);
-const ctcBob = accBob.contract(backend, ctcAlice.getInfo());
 
-const decisions=["I’m not here","“I’m still here"]
+let ctc = null;
+if (isAlice) {
+  ctc = accAlice.contract(backend);
+  ctc.getInfo().then((info) => {
+    console.log(`The contract is deployed as = ${JSON.stringify(info)}`); });
+} else {
+  const info = await ask.ask(
+    `Please paste the contract information:`,
+    JSON.parse
+  );
+  ctc =  accBob.contract(backend, info);
+}
 
-const timer=()=>({
-  showTime:(t)=>{
-    console.log(t)
-  }
-})
+
+const fmt = (x) => stdlib.formatCurrency(x, 4);
+
+const interact = { };
+
+
+interact.informTimeout = () => {
+  console.log(`There was a timeout.`);
+  process.exit(1);
+};
+
+interact.showTime=(t)=>console.log(t)
+
 
 console.log('Starting backends...');
-await Promise.all([
-  backend.Alice(ctcAlice, {
-    ...stdlib.hasRandom,
-    ... timer(),
-    deposit:stdlib.parseCurrency(5000),
-    makeDecision:()=>{
-      const decision=Math.floor(Math.random()*2)
-      console.log(`Alice made a decison:${decisions[decision]}`)
+if (isAlice) {
+  const amt = await ask.ask(
+    `How much do you want to deposit?`,
+    stdlib.parseCurrency
+  );
+  interact.deposit = amt;
+  //interact.deadline = { ETH: 100, ALGO: 100, CFX: 1000 }[stdlib.connector];
+} else {
+  interact.acceptTerms= async (amt) => {
+    const accepted = await ask.ask(
+      `Do you accept the terms of ${fmt(amt)}?`,
+      ask.yesno
+    );
+    if(accepted) return true
+    if (!accepted) {
+      process.exit(0);
+    }
+  };
+}
 
-      return (decision==0? false:true)
-    }
-  }),
-  backend.Bob(ctcBob, {
-    ...stdlib.hasRandom,
-    ... timer(),
-    acceptTerms:(num)=>{
-      console.log(`Bob accepts the terms for ${stdlib.formatCurrency(num)}`)
-      return true
-    }
-    // implement Bob's interact object here
-  }),
-]);
-console.log(`Alice balance after:${accBalance(accAlice)}`)
-console.log(`Bob balance after:${accBalance(accBob)}`)
+
+if (isAlice) {
+
+interact.makeDecision = async () => {
+  const decision = await ask.ask(`Are you still in?`,  ask.yesno)
+  return (decision? true:false)
+}
+}
+
+
+
+const part = isAlice ? ctc.p.Alice : ctc.p.Bob;
+await part(interact);
+
+
+console.log(`Alice balance after:${await accBalance( accAlice)}`)
+console.log(`Bob balance after:${await accBalance(accBob)}`)
 
 console.log('Goodbye, Alice and Bob!');
+ask.done();
